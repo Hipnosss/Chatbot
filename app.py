@@ -6,52 +6,75 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)
 
-# 🔐 Tu clave de OpenAI (usa la variable de entorno OPENAI_API_KEY)
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
-# 🧠 Simulación de memoria por sesión
 memoria_usuario = {}
 
-# 📚 Preguntas frecuentes fijas
 faq = {
-    "¿Cómo sé mi talla de calzado?": "Puedes consultar nuestra guía de tallas en la sección de ayuda.",
-    "¿Qué tipos de bota son resistentes al agua?": "Las botas de la línea Outdoor Pro cuentan con resistencia al agua certificada.",
-    "¿Qué significa que una bota tenga puntera de acero?": "La puntera de acero protege los dedos contra impactos y compresiones, ideal para entornos industriales.",
-    "¿Cuánto tardan los envíos?": "Los envíos nacionales tardan entre 2 y 5 días hábiles dependiendo de tu ubicación.",
-    "¿Puedo cambiar un producto si no me sirve?": "Sí, tienes hasta 15 días para cambios. Consulta nuestra política de devoluciones."
+    "¿cómo sé mi talla de calzado?": "Puedes consultar nuestra guía de tallas en la sección de ayuda.",
+    "¿qué tipos de bota son resistentes al agua?": "Las botas de la línea Outdoor Pro cuentan con resistencia al agua certificada.",
+    "¿qué significa que una bota tenga puntera de acero?": "La puntera de acero protege los dedos contra impactos y compresiones, ideal para entornos industriales.",
+    "¿cuánto tardan los envíos?": "Los envíos nacionales tardan entre 2 y 5 días hábiles dependiendo de tu ubicación.",
+    "¿puedo cambiar un producto si no me sirve?": "Sí, tienes hasta 15 días para cambios. Consulta nuestra política de devoluciones."
 }
+
+opciones_menu = {
+    "1": "Ofrecemos calzado industrial (Titanium, SteelGuard) y senderismo (OutdoorPro, UltraGrip).",
+    "2": "Consulta la guía de tallas aquí: https://tutienda.com/guia-tallas",
+    "3": "Aceptamos tarjeta de crédito, débito, PSE, Nequi y Daviplata.",
+    "4": "Contáctanos por WhatsApp al +57 3001234567 o revisa políticas en https://tutienda.com/devoluciones"
+}
+
+temas_permitidos = [
+    "bota", "zapato", "calzado", "pago", "talla", "envío",
+    "pedido", "devolución", "guía", "seguridad", "trabajo", "senderismo"
+]
 
 @app.route("/ask", methods=["POST"])
 def ask():
     data = request.get_json()
-    question = data.get("question", "").lower()
+    question = data.get("question", "").lower().strip()
     if not question:
         return jsonify({"answer": "Pregunta no válida."}), 400
 
-    # 🟨 Si el usuario dice su talla
+    if question in ["", "hola", "buenos días", "buenas", "menú", "menu", "opciones","normas calzado"]:
+        return jsonify({
+            "answer": "Hola 👟 ¿En qué puedo ayudarte?\n\n1️⃣ Ver tipos de calzado\n2️⃣ Guía de tallas\n3️⃣ Métodos de pago\n4️⃣ Contacto o devoluciones\n\n(Escribe solo el número de opción)"
+        })
+
+    if question in opciones_menu:
+        return jsonify({"answer": opciones_menu[question]})
+
     if "mi talla es" in question:
         talla = ''.join(filter(str.isdigit, question))
         memoria_usuario["talla"] = talla
         return jsonify({"answer": f"¡Perfecto! Recordaré que tu talla es {talla}."})
 
-    # 🟦 Si el usuario pregunta su talla
     if "¿cuál es mi talla" in question or "cual es mi talla" in question:
         if "talla" in memoria_usuario:
             return jsonify({"answer": f"Tu talla es {memoria_usuario['talla']}."})
         else:
             return jsonify({"answer": "Aún no me has dicho tu talla."})
 
-    # 🟩 Revisar preguntas frecuentes
     for key in faq:
-        if key.lower() in question:
+        if key in question:
             return jsonify({"answer": faq[key]})
 
-    # 🟥 Consultar OpenAI si no está en FAQ
+    if not any(p in question for p in temas_permitidos):
+        return jsonify({"answer": "Solo puedo ayudarte con temas relacionados al calzado y nuestra tienda. ¿Tienes una consulta sobre productos, tallas o envíos?"})
+
     try:
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "Eres un asistente experto en calzado industrial y de senderismo."},
+                {
+                    "role": "system",
+                    "content": (
+                        "Eres un asistente experto en calzado industrial y de senderismo. "
+                        "Responde únicamente preguntas relacionadas con calzado, tallas, productos, materiales, pagos, envíos o nuestra tienda. "
+                        "Si la pregunta es ajena al tema, indica que solo puedes asesorar sobre esos temas."
+                    )
+                },
                 {"role": "user", "content": question}
             ]
         )
