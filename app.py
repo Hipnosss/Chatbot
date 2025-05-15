@@ -38,7 +38,7 @@ def ask():
         return jsonify({"answer": "Pregunta no válida."}), 400
 
     menu_html = (
-        "👋 ¡Hola! Soy tu asistente de Calzado Pro.<br><br>"
+        "👋 ¡Hola! Soy tu asistente de First Hill.<br><br>"
         "¿En qué puedo ayudarte?<br><br>"
         "<strong>1.</strong> Ver tipos de calzado<br>"
         "<strong>2.</strong> Guía de tallas<br>"
