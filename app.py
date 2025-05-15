@@ -69,8 +69,8 @@ memoria_usuario = {}
 
 # Diccionario de imágenes por producto clave
 imagenes_productos = {
-    "alabama": "https://ruta-a-tu-imagen.com/alabama-protrek.webp",
-    "arizona": "https://ruta-a-tu-imagen.com/arizona-wildstride.webp",
+    "denver": "https://firsthill.com.co/wp-content/uploads/2024/09/1725576881351.webp",
+    "charlotte": "https://firsthill.com.co/wp-content/uploads/2024/10/1727877940141.webpp",
     # Añade las demás imágenes con claves similares
 }
 
