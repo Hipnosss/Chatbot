@@ -20,9 +20,9 @@ faq = {
 
 opciones_menu = {
     "1": "Ofrecemos calzado industrial (Titanium, SteelGuard) y senderismo (OutdoorPro, UltraGrip).",
-    "2": "Consulta la guía de tallas aquí: https://tutienda.com/guia-tallas",
-    "3": "Aceptamos tarjeta de crédito, débito, PSE, Nequi y Daviplata.",
-    "4": "Contáctanos por WhatsApp al +57 3001234567 o revisa políticas en https://tutienda.com/devoluciones"
+    "2": "Consulta la guía de tallas aquí: https://firsthill.com.co/tabla-de-tallas/",
+    "3": "Aceptamos tarjeta de crédito, débito, PSE, Nequi, Addi y Daviplata.",
+    "4": "Contáctanos por WhatsApp al +57 3001234567 o revisa políticas en https://firsthill.com.co/terminos-y-condiciones/"
 }
 
 temas_permitidos = [
@@ -39,7 +39,7 @@ def ask():
 
     # Menú con números normales en negrita
     menu_html = (
-        "Hola 👟 ¿En qué puedo ayudarte?<br><br>"
+        "Hola soy tu Asistente Virtual ¿En qué puedo ayudarte?<br><br>"
         "<strong>1.</strong> Ver tipos de calzado<br>"
         "<strong>2.</strong> Guía de tallas<br>"
         "<strong>3.</strong> Métodos de pago<br>"
@@ -48,7 +48,7 @@ def ask():
         "(Escribe solo el número de opción)"
     )
 
-    if question in ["", "hola", "buenos días", "buenas", "menú", "menu", "opciones", "normas calzado"]:
+    if question in ["", "hola", "buenos días", "buenas", "menú", "menu", "opciones", "normas calzado","envios"]:
         return jsonify({"answer": menu_html})
 
     if question in opciones_menu:
@@ -70,7 +70,7 @@ def ask():
             return jsonify({"answer": faq[key]})
 
     if not any(p in question for p in temas_permitidos):
-        return jsonify({"answer": "Solo puedo ayudarte con temas relacionados al calzado y nuestra tienda. ¿Tienes una consulta sobre productos, tallas o envíos?"})
+        return jsonify({"answer": "Solo puedo ayudarte con temas relacionados al calzado y nuestra tienda. ¿Tienes una consulta sobre productos o tallas?"})
 
     try:
         response = openai.ChatCompletion.create(
