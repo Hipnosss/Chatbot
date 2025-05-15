@@ -1,113 +1,134 @@
-function createMessageElement(content, className) {
-  const messageEl = document.createElement("div");
-  messageEl.className = `chat-message ${className}`;
-  messageEl.innerHTML = content;
-  return messageEl;
+from flask import Flask, request, jsonify
+import openai
+import os
+from flask_cors import CORS
+
+app = Flask(__name__)
+CORS(app)
+
+openai.api_key = os.getenv("OPENAI_API_KEY")
+
+contenido_sitio = """
+First Hill es una tienda colombiana especializada en calzado industrial y de senderismo.
+Ofrecemos botas para hombre y mujer en categorías Industrial, Outdoor y Tactical.
+
+Productos destacados y precios:
+- Botas Alabama ProTrek Outdoor para Hombre (Café) - $288.000 COP (antes $320.000)
+- Botas Arizona WildStride Outdoor para Hombre (Negro Goma) - $320.000 COP
+- Botas Charlotte PowerTech Outdoor para Mujer (Negro) - $270.000 COP
+- Botas Dakota Elite Outdoor para Hombre (Verde) - $320.000 COP
+- Botas Denver PowerStep Industrial para Mujer (Miel) - $360.000 COP
+- Botas Denver PowerStep Industrial para Mujer (Negro Gris) - $360.000 COP
+- Botas Denver TitanStep Industrial para Hombre (Café) - $360.000 COP
+- Botas Nevada TrailMaster Outdoor para Hombre (Verde) - $320.000 COP
+- Botas Cincinnati IronForce Industrial para Hombre (Negro Amarillo) - $360.000 COP
+- Botas Cincinnati IronForce Industrial para Hombre (Café) - $360.000 COP
+- Botas Cincinnati IronForce Industrial para Hombre (Miel) - $360.000 COP
+
+Envíos:
+- Tiempo de entrega: 2 a 5 días hábiles.
+- Envío gratis en toda Colombia.
+
+Cambios y devoluciones: Hasta 15 días después de la compra.
+Métodos de pago: Tarjeta, PSE, Nequi, Daviplata.
+"""
+
+faq = {
+    "¿cómo sé mi talla de calzado?": "Puedes consultar nuestra guía de tallas en la sección de ayuda en la web.",
+    "¿qué tipos de bota son resistentes al agua?": "Las botas de la línea Outdoor Pro cuentan con resistencia al agua.",
+    "¿qué significa que una bota tenga puntera de acero?": "Protección para los dedos contra impactos, ideal en ambientes industriales.",
+    "¿cuánto tardan los envíos?": "Entre 2 y 5 días hábiles según la ciudad.",
+    "¿puedo cambiar un producto si no me sirve?": "Sí, tienes hasta 15 días para cambios.",
+    "¿qué métodos de pago aceptan?": "Tarjeta, PSE, Nequi y Daviplata.",
+    "¿cómo contacto con atención al cliente?": "WhatsApp +57 3144403880 o contacto@firsthill.com.co"
 }
 
-async function sendMessage(customMessage = null) {
-  const input = document.getElementById("user-input");
-  const chatBox = document.getElementById("chat-box");
-  const message = customMessage || input.value.trim();
-  if (!message) return;
-
-  const userMessage = createMessageElement(message, "user");
-  chatBox.appendChild(userMessage);
-  chatBox.scrollTop = chatBox.scrollHeight;
-
-  if (!customMessage) {
-    input.value = "";
-    input.disabled = true;
-  }
-
-  const normalizedMessage = message.toLowerCase();
-
-  const saludos = ["hola", "buenos días", "buenos dias", "buenas", "buenas tardes", "buenas noches"];
-  const esSaludo = saludos.some(s => normalizedMessage.includes(s));
-
-  // Si es un saludo, mostrar el menú directamente
-  if (esSaludo) {
-    setTimeout(() => {
-      createBotMenu();
-    }, 300);
-    if (!customMessage) input.disabled = false;
-    return;
-  }
-
-  try {
-    const response = await fetch("https://chatbot-calzado.onrender.com/ask", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question: message }),
-    });
-
-    const data = await response.json();
-
-    let botContent = data.answer;
-
-    if (data.image_url) {
-      botContent += `<br><img src="${data.image_url}" alt="Producto" style="margin-top:10px; max-width:100%; border-radius:12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">`;
-    }
-
-    const botMessage = createMessageElement(botContent, "bot");
-
-    setTimeout(() => {
-      chatBox.appendChild(botMessage);
-      chatBox.scrollTop = chatBox.scrollHeight;
-    }, 300);
-  } catch (error) {
-    const errorMessage = createMessageElement(
-      "❌ Error al consultar. Intenta más tarde.",
-      "bot"
-    );
-    chatBox.appendChild(errorMessage);
-  } finally {
-    if (!customMessage) input.disabled = false;
-  }
+imagenes_productos = {
+    "alabama": "https://firsthill.com.co/wp-content/uploads/2024/04/Alabama-ProTrek.jpg",
+    "arizona": "https://firsthill.com.co/wp-content/uploads/2024/04/Arizona-WildStride.jpg",
+    "charlotte": "https://firsthill.com.co/wp-content/uploads/2024/04/Charlotte-PowerTech.jpg",
+    "dakota": "https://firsthill.com.co/wp-content/uploads/2024/04/Dakota-Elite.jpg",
+    "denver": "https://firsthill.com.co/wp-content/uploads/2024/04/Denver-TitanStep.jpg",
+    "nevada": "https://firsthill.com.co/wp-content/uploads/2024/04/Nevada-TrailMaster.jpg",
+    "cincinnati": "https://firsthill.com.co/wp-content/uploads/2024/09/1725576881351.webp"
 }
 
-function createBotMenu() {
-  const chatBox = document.getElementById("chat-box");
+temas_permitidos = [
+    "bota", "zapato", "calzado", "pago", "talla", "envío", "envios",
+    "pedido", "devolución", "devoluciones", "guía", "seguridad", "trabajo", "senderismo",
+    "política", "políticas", "contacto", "precio", "precios", "cotización", "envío gratis"
+]
 
-  const welcomeMessage =
-    "👋 ¡Hola! Soy tu asistente de First Hill. ¿En qué puedo ayudarte?";
+memoria_usuario = {}
 
-  const messageEl = createMessageElement(welcomeMessage, "bot");
+@app.route("/ask", methods=["POST"])
+def ask():
+    data = request.get_json()
+    user_id = data.get("user_id", "default_user")
+    question = data.get("question", "").lower().strip()
 
-  const options = [
-    { label: "1. Ver tipos de calzado", value: "1" },
-    { label: "2. Guía de tallas", value: "2" },
-    { label: "3. Métodos de pago", value: "3" },
-    { label: "4. Contacto o devoluciones", value: "4" },
-    { label: "5. Pregunta abierta", value: "5" },
-  ];
+    if not question:
+        return jsonify({"answer": "Por favor, ingresa una pregunta válida."}), 400
 
-  const buttonContainer = document.createElement("div");
-  buttonContainer.style.marginTop = "10px";
-  buttonContainer.style.display = "flex";
-  buttonContainer.style.flexWrap = "wrap";
-  buttonContainer.style.gap = "8px";
+    # Menú por número
+    if question in ["1", "2", "3", "4"]:
+        opciones = {
+            "1": "Ofrecemos botas industriales, outdoor y tácticas. ¿Te interesa algún modelo en particular?",
+            "2": "Los envíos tardan entre 2 y 5 días hábiles. ¡Y son gratis en toda Colombia!",
+            "3": "Aceptamos pagos por tarjeta, PSE, Nequi y Daviplata. ¿Cuál prefieres?",
+            "4": "Puedes escribirnos al WhatsApp +57 3144403880 o al correo contacto@firsthill.com.co"
+        }
+        return jsonify({"answer": opciones[question]})
 
-  options.forEach((option) => {
-    const btn = document.createElement("button");
-    btn.textContent = option.label;
-    btn.style.padding = "6px 12px";
-    btn.style.borderRadius = "8px";
-    btn.style.border = "none";
-    btn.style.cursor = "pointer";
-    btn.style.backgroundColor = "#000";
-    btn.style.color = "#fff";
-    btn.style.fontSize = "14px";
-    btn.style.transition = "background 0.3s";
-    btn.addEventListener("click", () => sendMessage(option.value));
-    buttonContainer.appendChild(btn);
-  });
+    # FAQ directa
+    for faq_q, faq_r in faq.items():
+        if faq_q in question:
+            return jsonify({"answer": faq_r})
 
-  messageEl.appendChild(buttonContainer);
-  chatBox.appendChild(messageEl);
-  chatBox.scrollTop = chatBox.scrollHeight;
-}
+    # Guardar talla
+    if "mi talla es" in question:
+        talla = ''.join(filter(str.isdigit, question))
+        if talla:
+            memoria_usuario[user_id] = {"talla": talla}
+            return jsonify({"answer": f"¡Perfecto! Recordaré que tu talla es {talla}."})
+        else:
+            return jsonify({"answer": "No entendí tu talla. Por favor indícala con números."})
 
-window.addEventListener("DOMContentLoaded", () => {
-  createBotMenu();
-});
+    # Recordar talla
+    if "¿cuál es mi talla" in question or "cual es mi talla" in question:
+        if user_id in memoria_usuario and "talla" in memoria_usuario[user_id]:
+            return jsonify({"answer": f"Tu talla es {memoria_usuario[user_id]['talla']}."})
+        else:
+            return jsonify({"answer": "Aún no me has dicho tu talla."})
+
+    # Imagen del producto
+    for nombre, url in imagenes_productos.items():
+        if nombre in question:
+            return jsonify({
+                "answer": f"Aquí tienes la imagen del modelo {nombre.capitalize()}:",
+                "image_url": url
+            })
+
+    # Restringir temas
+    if not any(palabra in question for palabra in temas_permitidos):
+        return jsonify({"answer": "Solo puedo ayudarte con temas relacionados al calzado y nuestra tienda. ¿Tienes una consulta sobre productos, tallas o envíos?"})
+
+    # OpenAI Chat
+    try:
+        completion = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "Eres un asistente experto en calzado industrial y outdoor. Responde solo con la información de la tienda."},
+                {"role": "user", "content": f"{contenido_sitio}\n\nPregunta: {question}"}
+            ],
+            temperature=0.5,
+            max_tokens=400
+        )
+        answer = completion.choices[0].message.content.strip()
+        return jsonify({"answer": answer})
+
+    except Exception as e:
+        return jsonify({"answer": f"Error al procesar la pregunta: {str(e)}"}), 500
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
