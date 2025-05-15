@@ -37,16 +37,18 @@ def ask():
     if not question:
         return jsonify({"answer": "Pregunta no válida."}), 400
 
+    # Menú con números normales en negrita
     menu_html = (
-        "Hola soy tu Asistente Virtual ¿En qué puedo ayudarte?<br><br>"
-        "<span style='display:inline-block; background:black; color:white; font-weight:bold; border-radius:50%; width:10px; height:10px; line-height:10px; text-align:center; margin-right:5px; font-size:10px;'>1</span> Ver tipos de calzado<br>"
-        "<span style='display:inline-block; background:black; color:white; font-weight:bold; border-radius:50%; width:20px; height:20px; line-height:20px; text-align:center; margin-right:8px; font-size:14px;'>2</span> Guía de tallas<br>"
-        "<span style='display:inline-block; background:black; color:white; font-weight:bold; border-radius:50%; width:20px; height:20px; line-height:20px; text-align:center; margin-right:8px; font-size:14px;'>3</span> Métodos de pago<br>"
-        "<span style='display:inline-block; background:black; color:white; font-weight:bold; border-radius:50%; width:20px; height:20px; line-height:20px; text-align:center; margin-right:8px; font-size:14px;'>4</span> Contacto o devoluciones<br><br>"
+        "Hola 👟 ¿En qué puedo ayudarte?<br><br>"
+        "<strong>1.</strong> Ver tipos de calzado<br>"
+        "<strong>2.</strong> Guía de tallas<br>"
+        "<strong>3.</strong> Métodos de pago<br>"
+        "<strong>4.</strong> Contacto o devoluciones<br>"
+        "<strong>5.</strong> Hacer una pregunta abierta<br><br>"
         "(Escribe solo el número de opción)"
     )
 
-    if question in ["", "hola", "buenos días", "buenas", "menú", "menu", "opciones","normas calzado"]:
+    if question in ["", "hola", "buenos días", "buenas", "menú", "menu", "opciones", "normas calzado"]:
         return jsonify({"answer": menu_html})
 
     if question in opciones_menu:
