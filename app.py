@@ -39,7 +39,7 @@ def ask():
 
     menu_html = (
         "Hola soy tu Asistente Virtual ¿En qué puedo ayudarte?<br><br>"
-        "<span style='display:inline-block; background:black; color:white; font-weight:bold; border-radius:50%; width:10px; height:10px; line-height:10px; text-align:center; margin-right:2px; font-size:10px;'>1</span> Ver tipos de calzado<br>"
+        "<span style='display:inline-block; background:black; color:white; font-weight:bold; border-radius:50%; width:10px; height:10px; line-height:10px; text-align:center; margin-right:5px; font-size:10px;'>1</span> Ver tipos de calzado<br>"
         "<span style='display:inline-block; background:black; color:white; font-weight:bold; border-radius:50%; width:20px; height:20px; line-height:20px; text-align:center; margin-right:8px; font-size:14px;'>2</span> Guía de tallas<br>"
         "<span style='display:inline-block; background:black; color:white; font-weight:bold; border-radius:50%; width:20px; height:20px; line-height:20px; text-align:center; margin-right:8px; font-size:14px;'>3</span> Métodos de pago<br>"
         "<span style='display:inline-block; background:black; color:white; font-weight:bold; border-radius:50%; width:20px; height:20px; line-height:20px; text-align:center; margin-right:8px; font-size:14px;'>4</span> Contacto o devoluciones<br><br>"
