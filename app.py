@@ -26,41 +26,36 @@ Productos destacados y precios:
 - Botas Cincinnati IronForce Industrial para Hombre (Miel) - $360.000 COP
 
 Calidad garantizada: Todos los productos pasan por inspección antes de despacho.
-Ofrecemos cotizaciones por mayor (+60 pares).
+Cotizaciones por mayor (+60 pares).
 Cobertura nacional con envío gratis a toda Colombia.
 Pago seguro con pasarela que cumple todos los requisitos de seguridad.
 
 Envíos:
-- Tiempo de entrega: 2 a 5 días hábiles según ubicación.
+- Tiempo de entrega: 2 a 5 días hábiles.
 - Envío gratis en toda Colombia.
 
-Políticas:
-- Cambios y devoluciones: Hasta 15 días después de la compra.
-- Métodos de pago: Tarjeta de crédito/débito, PSE, Nequi, Daviplata.
+Cambios y devoluciones: Hasta 15 días después de la compra.
+Métodos de pago: Tarjeta, PSE, Nequi, Daviplata.
 
 Contacto:
-- Dirección: Cl 69 Sur #18h-51, Bogotá, Colombia
-- Teléfono: (+57) 3144403880
+- Dirección: Cl 69 Sur #18h-51, Bogotá
+- Tel: (+57) 3144403880
 - Email: contacto@firsthill.com.co
-- Redes sociales: Instagram, Facebook, WhatsApp @FIRSTHILLCOLOMBIA
+- Redes sociales: Instagram, Facebook y WhatsApp: @FIRSTHILLCOLOMBIA
 
-Guía de tallas disponible en la sección "Tabla de Tallas" en la web.
+Guía de tallas en la web. Políticas de privacidad, cambios y condiciones también están disponibles en línea.
 
-Avisos legales:
-- Políticas de privacidad, términos y condiciones y política de cambios están disponibles en el sitio web.
-
-Derechos reservados © 2025 FIRST HILL S.A.S
+© 2025 FIRST HILL S.A.S. Todos los derechos reservados.
 """
 
-# Preguntas frecuentes definidas para respuestas rápidas
 faq = {
     "¿cómo sé mi talla de calzado?": "Puedes consultar nuestra guía de tallas en la sección de ayuda en la web.",
-    "¿qué tipos de bota son resistentes al agua?": "Las botas de la línea Outdoor Pro cuentan con resistencia al agua certificada.",
-    "¿qué significa que una bota tenga puntera de acero?": "La puntera de acero protege los dedos contra impactos y compresiones, ideal para entornos industriales.",
-    "¿cuánto tardan los envíos?": "Los envíos nacionales tardan entre 2 y 5 días hábiles dependiendo de tu ubicación.",
-    "¿puedo cambiar un producto si no me sirve?": "Sí, tienes hasta 15 días para cambios. Consulta nuestra política de devoluciones.",
-    "¿qué métodos de pago aceptan?": "Aceptamos tarjeta de crédito, débito, PSE, Nequi y Daviplata.",
-    "¿cómo contacto con atención al cliente?": "Puedes escribirnos al WhatsApp +57 3144403880 o al correo contacto@firsthill.com.co"
+    "¿qué tipos de bota son resistentes al agua?": "Las botas de la línea Outdoor Pro cuentan con resistencia al agua.",
+    "¿qué significa que una bota tenga puntera de acero?": "Protección para los dedos contra impactos, ideal en ambientes industriales.",
+    "¿cuánto tardan los envíos?": "Entre 2 y 5 días hábiles según la ciudad.",
+    "¿puedo cambiar un producto si no me sirve?": "Sí, tienes hasta 15 días para cambios.",
+    "¿qué métodos de pago aceptan?": "Tarjeta, PSE, Nequi y Daviplata.",
+    "¿cómo contacto con atención al cliente?": "WhatsApp +57 3144403880 o contacto@firsthill.com.co"
 }
 
 temas_permitidos = [
@@ -69,68 +64,52 @@ temas_permitidos = [
     "política", "políticas", "contacto", "precio", "precios", "cotización", "envío gratis"
 ]
 
-# Memoria temporal para usuarios (ejemplo simple)
 memoria_usuario = {}
 
 @app.route("/ask", methods=["POST"])
 def ask():
     data = request.get_json()
-    user_id = data.get("user_id", "default_user")  # Para identificar sesión/usuario
+    user_id = data.get("user_id", "default_user")
     question = data.get("question", "").lower().strip()
     if not question:
         return jsonify({"answer": "Por favor, ingresa una pregunta válida."}), 400
 
-    # Respuesta rápida de FAQ si coincide con alguna pregunta frecuente exacta
-    for pregunta_frecuente, respuesta_frecuente in faq.items():
-        if pregunta_frecuente in question:
-            return jsonify({"answer": respuesta_frecuente})
+    for faq_q, faq_r in faq.items():
+        if faq_q in question:
+            return jsonify({"answer": faq_r})
 
-    # Guardar talla si el usuario la menciona
     if "mi talla es" in question:
         talla = ''.join(filter(str.isdigit, question))
         if talla:
             memoria_usuario[user_id] = {"talla": talla}
             return jsonify({"answer": f"¡Perfecto! Recordaré que tu talla es {talla}."})
         else:
-            return jsonify({"answer": "No entendí tu talla, por favor indícala con números."})
+            return jsonify({"answer": "No entendí tu talla. Por favor indícala con números."})
 
-    # Consultar talla guardada
     if "¿cuál es mi talla" in question or "cual es mi talla" in question:
         if user_id in memoria_usuario and "talla" in memoria_usuario[user_id]:
             return jsonify({"answer": f"Tu talla es {memoria_usuario[user_id]['talla']}."})
         else:
             return jsonify({"answer": "Aún no me has dicho tu talla."})
 
-    # Validar que la pregunta contenga alguna palabra permitida
     if not any(palabra in question for palabra in temas_permitidos):
         return jsonify({"answer": "Solo puedo ayudarte con temas relacionados al calzado y nuestra tienda. ¿Tienes una consulta sobre productos, tallas o envíos?"})
 
     try:
-        prompt = (
-            "Eres un asistente experto en calzado industrial y de senderismo. "
-            "Usa la siguiente información para responder las preguntas:\n\n"
-            f"{contenido_sitio}\n\n"
-            "Responde solo sobre temas relacionados a esta información, "
-            "si la pregunta no corresponde, indica que solo puedes ayudar sobre esos temas.\n\n"
-            f"Pregunta: {question}\nRespuesta:"
+        completion = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "Eres un asistente experto en calzado industrial y outdoor. Responde solo con la información de la tienda."},
+                {"role": "user", "content": f"{contenido_sitio}\n\nPregunta: {question}"}
+            ],
+            temperature=0.5,
+            max_tokens=400
         )
-        response = openai.Completion.create(
-            engine="text-davinci-003",
-            prompt=prompt,
-            max_tokens=400,
-            temperature=0.6,
-            top_p=1,
-            frequency_penalty=0,
-            presence_penalty=0
-        )
-        answer = response.choices[0].text.strip()
+        answer = completion.choices[0].message.content.strip()
         return jsonify({"answer": answer})
 
     except Exception as e:
         return jsonify({"answer": f"Error al procesar la pregunta: {str(e)}"}), 500
 
-
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
-
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
