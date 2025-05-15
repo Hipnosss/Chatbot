@@ -2,7 +2,6 @@ from flask import Flask, request, jsonify
 import openai
 import os
 from flask_cors import CORS
-import difflib
 
 app = Flask(__name__)
 CORS(app)
@@ -65,17 +64,11 @@ temas_permitidos = [
     "política", "políticas", "contacto", "precio", "precios", "cotización", "envío gratis"
 ]
 
-saludos = ["hola", "buenos días", "buen día", "buenas tardes", "buenas noches", "buenas"]
-
+# Memoria temporal por usuario
 memoria_usuario = {}
 
-def pregunta_similar(pregunta, lista_preguntas, umbral=0.7):
-    # Retorna True si pregunta es similar a alguna en lista_preguntas usando difflib
-    for p in lista_preguntas:
-        seq = difflib.SequenceMatcher(None, pregunta, p)
-        if seq.ratio() >= umbral:
-            return True, p
-    return False, None
+# Palabras para detectar saludo y mostrar menú
+saludos = ["hola", "buenos días", "buen día", "buenas tardes", "buenas noches", "buenas"]
 
 @app.route("/ask", methods=["POST"])
 def ask():
@@ -85,7 +78,7 @@ def ask():
     if not question:
         return jsonify({"answer": "Por favor, ingresa una pregunta válida."})
 
-    # Saludo: mostrar menú
+    # Mostrar menú si es saludo
     if any(saludo in question for saludo in saludos):
         menu = (
             "👋 ¡Hola! Soy tu asistente de First Hill. ¿En qué puedo ayudarte?\n\n"
@@ -98,12 +91,25 @@ def ask():
         )
         return jsonify({"answer": menu})
 
-    # Buscar FAQ con similitud
-    similar, clave_faq = pregunta_similar(question, list(faq.keys()))
-    if similar:
-        return jsonify({"answer": faq[clave_faq]})
+    # Manejo de opciones numéricas del menú
+    if question in ["1", "2", "3", "4", "5"]:
+        if question == "1":
+            return jsonify({"answer": "En First Hill tenemos botas y zapatos para industria, construcción, senderismo y más."})
+        elif question == "2":
+            return jsonify({"answer": "Consulta nuestra guía de tallas en la web o dime tu talla y te ayudo a elegir."})
+        elif question == "3":
+            return jsonify({"answer": "Aceptamos pagos con tarjeta, PSE, Nequi y Daviplata."})
+        elif question == "4":
+            return jsonify({"answer": "Puedes contactarnos por WhatsApp +57 3144403880 o por correo contacto@firsthill.com.co. También gestionamos devoluciones en 15 días."})
+        elif question == "5":
+            return jsonify({"answer": "Perfecto, hazme cualquier pregunta sobre nuestros productos o servicios."})
 
-    # Guardar talla si indican "mi talla es X"
+    # Preguntas frecuentes con búsqueda básica
+    for faq_q, faq_r in faq.items():
+        if faq_q in question or question in faq_q:
+            return jsonify({"answer": faq_r})
+
+    # Guardar talla si la indican
     if "mi talla es" in question:
         talla = ''.join(filter(str.isdigit, question))
         if talla:
@@ -119,7 +125,7 @@ def ask():
         else:
             return jsonify({"answer": "Aún no me has dicho tu talla."})
 
-    # Validar tema permitido
+    # Temas permitidos para filtrar preguntas irrelevantes
     if not any(palabra in question for palabra in temas_permitidos):
         return jsonify({"answer": "Solo puedo ayudarte con temas relacionados al calzado y nuestra tienda. ¿Tienes una consulta sobre productos, tallas o envíos?"})
 
