@@ -9,7 +9,7 @@ CORS(app)
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
 # Leer el archivo de texto una sola vez al iniciar la app
-with open("contenido.txt", "r", encoding="utf-8") as f:
+with open("contenido_sitio.txt", "r", encoding="utf-8") as f:
     contenido_sitio = f.read()
 
 memoria_usuario = {}
