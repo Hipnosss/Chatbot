@@ -64,41 +64,86 @@ temas_permitidos = [
     "política", "políticas", "contacto", "precio", "precios", "cotización", "envío gratis"
 ]
 
+# Memoria temporal por usuario
+memoria_usuario = {}
+
+# Diccionario de imágenes por producto clave
+imagenes_productos = {
+    "alabama": "https://ruta-a-tu-imagen.com/alabama-protrek.webp",
+    "arizona": "https://ruta-a-tu-imagen.com/arizona-wildstride.webp",
+    # Añade las demás imágenes con claves similares
+}
+
+# Palabras para detectar saludo y mostrar menú
+saludos = ["hola", "buenos días", "buen día", "buenas tardes", "buenas noches", "buenas"]
+
 @app.route("/ask", methods=["POST"])
 def ask():
     data = request.get_json()
+    user_id = data.get("user_id", "default_user")
     question = data.get("question", "").lower().strip()
     if not question:
-        return jsonify({"answer": "Por favor, ingresa una pregunta válida."}), 400
+        return jsonify({"answer": "Por favor, ingresa una pregunta válida."})
 
-    # Respuestas rápidas FAQ
+    # Reiniciar menú si saludo
+    if any(saludo in question for saludo in saludos):
+        menu = (
+            "👋 ¡Hola! Soy tu asistente de First Hill. ¿En qué puedo ayudarte?\n\n"
+            "1. Ver tipos de calzado\n"
+            "2. Guía de tallas\n"
+            "3. Métodos de pago\n"
+            "4. Contacto o devoluciones\n"
+            "5. Pregunta abierta\n"
+            "(Escribe solo el número de opción)"
+        )
+        return jsonify({"answer": menu})
+
+    # Buscar en FAQ
     for faq_q, faq_r in faq.items():
         if faq_q in question:
             return jsonify({"answer": faq_r})
 
-    # Filtrar temas no permitidos
+    # Guardar talla si la indican
+    if "mi talla es" in question:
+        talla = ''.join(filter(str.isdigit, question))
+        if talla:
+            memoria_usuario[user_id] = {"talla": talla}
+            return jsonify({"answer": f"¡Perfecto! Recordaré que tu talla es {talla}."})
+        else:
+            return jsonify({"answer": "No entendí tu talla. Por favor indícala con números."})
+
+    # Consultar talla guardada
+    if "¿cuál es mi talla" in question or "cual es mi talla" in question:
+        if user_id in memoria_usuario and "talla" in memoria_usuario[user_id]:
+            return jsonify({"answer": f"Tu talla es {memoria_usuario[user_id]['talla']}."})
+        else:
+            return jsonify({"answer": "Aún no me has dicho tu talla."})
+
+    # Verificar tema permitido
     if not any(palabra in question for palabra in temas_permitidos):
         return jsonify({"answer": "Solo puedo ayudarte con temas relacionados al calzado y nuestra tienda. ¿Tienes una consulta sobre productos, tallas o envíos?"})
+
+    # Buscar si hay imagen relacionada
+    image_url = None
+    for clave in imagenes_productos:
+        if clave in question:
+            image_url = imagenes_productos[clave]
+            break
+
+    # Crear prompt para OpenAI
+    prompt = f"{contenido_sitio}\n\nPregunta: {question}"
 
     try:
         completion = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": "Eres un asistente experto en calzado industrial y outdoor. Responde solo con la información de la tienda."},
-                {"role": "user", "content": f"{contenido_sitio}\n\nPregunta: {question}"}
+                {"role": "user", "content": prompt}
             ],
             temperature=0.5,
             max_tokens=400
         )
         answer = completion.choices[0].message.content.strip()
-
-        # Aquí agregas una lógica simple para devolver una imagen si la pregunta lo amerita
-        image_url = None
-        if "alabama" in question:
-            image_url = "https://ruta-a-tu-imagen.com/alabama-protrek.webp"
-        elif "arizona" in question:
-            image_url = "https://ruta-a-tu-imagen.com/arizona-wildstride.webp"
-        # Puedes agregar más condiciones para otros productos
 
         response = {"answer": answer}
         if image_url:
@@ -107,7 +152,7 @@ def ask():
         return jsonify(response)
 
     except Exception as e:
-        return jsonify({"answer": f"Error al procesar la pregunta: {str(e)}"}), 500
+        return jsonify({"answer": f"Error al procesar la pregunta: {str(e)}"})
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
