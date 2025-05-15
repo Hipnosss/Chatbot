@@ -37,10 +37,17 @@ def ask():
     if not question:
         return jsonify({"answer": "Pregunta no válida."}), 400
 
+    menu_html = (
+        "Hola 👟 ¿En qué puedo ayudarte?<br><br>"
+        "<span style='background:black; color:white; padding:2px 8px; border-radius:6px; margin-right:8px;'>1</span> Ver tipos de calzado<br>"
+        "<span style='background:black; color:white; padding:2px 8px; border-radius:6px; margin-right:8px;'>2</span> Guía de tallas<br>"
+        "<span style='background:black; color:white; padding:2px 8px; border-radius:6px; margin-right:8px;'>3</span> Métodos de pago<br>"
+        "<span style='background:black; color:white; padding:2px 8px; border-radius:6px; margin-right:8px;'>4</span> Contacto o devoluciones<br><br>"
+        "(Escribe solo el número de opción)"
+    )
+
     if question in ["", "hola", "buenos días", "buenas", "menú", "menu", "opciones","normas calzado"]:
-        return jsonify({
-            "answer": "Hola 👟 ¿En qué puedo ayudarte?\n\n1️⃣ Ver tipos de calzado\n2️⃣ Guía de tallas\n3️⃣ Métodos de pago\n4️⃣ Contacto o devoluciones\n\n(Escribe solo el número de opción)"
-        })
+        return jsonify({"answer": menu_html})
 
     if question in opciones_menu:
         return jsonify({"answer": opciones_menu[question]})
