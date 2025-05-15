@@ -1,34 +1,38 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 import openai
 import os
-from flask_cors import CORS
 
 app = Flask(__name__)
 CORS(app)
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
-memoria_usuario = {}
-
+# 📌 Diccionario de preguntas frecuentes
 faq = {
-    "¿cómo sé mi talla de calzado?": "Puedes consultar nuestra guía de tallas en la sección de ayuda.",
-    "¿qué tipos de bota son resistentes al agua?": "Las botas de la línea Outdoor Pro cuentan con resistencia al agua certificada.",
-    "¿qué significa que una bota tenga puntera de acero?": "La puntera de acero protege los dedos contra impactos y compresiones, ideal para entornos industriales.",
-    "¿cuánto tardan los envíos?": "Los envíos nacionales tardan entre 2 y 5 días hábiles dependiendo de tu ubicación.",
-    "¿puedo cambiar un producto si no me sirve?": "Sí, tienes hasta 15 días para cambios. Consulta nuestra política de devoluciones."
+    "envío": "Hacemos envíos a toda Colombia. El envío es gratuito.",
+    "cambio": "Puedes solicitar cambios dentro de los primeros 8 días.",
+    "garantía": "Todos nuestros productos tienen garantía contra defectos de fábrica.",
+    "talla": "Tenemos guía de tallas en la web para hombres y mujeres. ¿Te gustaría verla?",
+    "pago": "Puedes pagar con tarjeta, transferencia, Addi o Sistecrédito.",
 }
 
+# 📌 Otras respuestas personalizadas
 opciones_menu = {
-    "1": "Ofrecemos calzado industrial (Titanium, SteelGuard) y senderismo (OutdoorPro, UltraGrip).",
-    "2": "Consulta la guía de tallas aquí: https://tutienda.com/guia-tallas",
-    "3": "Aceptamos tarjeta de crédito, débito, PSE, Nequi y Daviplata.",
-    "4": "Contáctanos por WhatsApp al +57 3001234567 o revisa políticas en https://tutienda.com/devoluciones"
+    "1": "Tenemos botas industriales, outdoor, tácticas y de senderismo para hombre y mujer. ¿Te interesa alguna categoría específica?",
+    "2": "Consulta la guía de tallas aquí: https://firsthill.com.co/tabla-de-tallas/",
+    "3": "Aceptamos tarjeta de crédito/débito, Addi y Sistecrédito. También puedes pagar por PSE o en puntos físicos.",
+    "4": "Puedes contactarnos en contacto@firsthill.com.co o al WhatsApp +57 3144403880.",
+    "5": "Perfecto, dime tu pregunta y trataré de ayudarte.",
 }
 
+# 📌 Términos permitidos para redirigir a GPT
 temas_permitidos = [
-    "bota", "zapato", "calzado", "pago", "talla", "envío",
-    "pedido", "devolución", "guía", "seguridad", "trabajo", "senderismo"
+    "bota", "zapato", "calzado", "hombre", "mujer", "outdoor", "industrial",
+    "talla", "envío", "cambio", "devolución", "garantía", "precio", "pago", "color", "sueldo", "pasarela", "referencia"
 ]
+
+memoria_usuario = {}
 
 @app.route("/ask", methods=["POST"])
 def ask():
@@ -37,6 +41,7 @@ def ask():
     if not question:
         return jsonify({"answer": "Pregunta no válida."}), 400
 
+    # 🎛 Menú básico
     menu_html = (
         "👋 ¡Hola! Soy tu asistente de First Hill.<br><br>"
         "¿En qué puedo ayudarte?<br><br>"
@@ -48,12 +53,13 @@ def ask():
         "<em>(Escribe solo el número de opción o tu consulta)</em>"
     )
 
-    if question in ["", "hola", "buenos días", "buenas", "menú", "menu", "opciones", "normas calzado"]:
+    if question in ["", "hola", "buenos días", "buenas", "menú", "menu", "opciones"]:
         return jsonify({"answer": menu_html})
 
     if question in opciones_menu:
         return jsonify({"answer": opciones_menu[question]})
 
+    # 🎯 Recordar talla
     if "mi talla es" in question:
         talla = ''.join(filter(str.isdigit, question))
         memoria_usuario["talla"] = talla
@@ -65,23 +71,29 @@ def ask():
         else:
             return jsonify({"answer": "Aún no me has dicho tu talla."})
 
+    # 🔎 Buscar en FAQ
     for key in faq:
         if key in question:
             return jsonify({"answer": faq[key]})
 
+    # 🚫 Filtro de temas
     if not any(p in question for p in temas_permitidos):
         return jsonify({"answer": "Solo puedo ayudarte con temas relacionados al calzado y nuestra tienda. ¿Tienes una consulta sobre productos, tallas o envíos?"})
 
+    # 🤖 Consulta a OpenAI con contexto del archivo
     try:
+        with open("contenido_sitio.txt", "r", encoding="utf-8") as f:
+            contexto = f.read()
+
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
             messages=[
                 {
                     "role": "system",
                     "content": (
-                        "Eres un asistente experto en calzado industrial y de senderismo. "
-                        "Responde únicamente preguntas relacionadas con calzado, tallas, productos, materiales, pagos, envíos o nuestra tienda. "
-                        "Si la pregunta es ajena al tema, indica que solo puedes asesorar sobre esos temas."
+                        "Eres un asistente experto de la tienda First Hill. "
+                        "Usa la siguiente información para responder preguntas sobre productos, envíos, pagos y políticas:\n\n"
+                        f"{contexto}"
                     )
                 },
                 {"role": "user", "content": question}
@@ -92,6 +104,9 @@ def ask():
     except Exception as e:
         return jsonify({"answer": f"Error: {str(e)}"}), 500
 
+@app.route("/")
+def home():
+    return "Servidor funcionando correctamente"
+
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(debug=True)
