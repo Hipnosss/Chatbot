@@ -48,6 +48,22 @@ Guía de tallas en la web. Políticas de privacidad, cambios y condiciones tambi
 © 2025 FIRST HILL S.A.S. Todos los derechos reservados.
 """
 
+productos = {
+    "botas dakota": {
+        "nombre": "Botas Dakota Elite Outdoor para Hombre (Verde)",
+        "precio": "$320.000 COP",
+        "descripcion": "Botas de senderismo con plantilla antifatiga y suela de caucho duradera.",
+        "imagen": "https://firsthill.com.co/wp-content/uploads/2024/01/botas-dakota.jpg"
+    },
+    "botas charlotte": {
+        "nombre": "Botas Charlotte PowerTech Outdoor para Mujer (Negro)",
+        "precio": "$270.000 COP",
+        "descripcion": "Botas outdoor y tactical para mujer, resistentes y con gran soporte.",
+        "imagen": "https://firsthill.com.co/wp-content/uploads/2024/10/1727877940141.webp"
+    }
+    # agregar más productos
+}
+
 faq = {
     "¿cómo sé mi talla de calzado?": "Puedes consultar nuestra guía de tallas en la sección de ayuda en la web.",
     "¿qué tipos de bota son resistentes al agua?": "Las botas de la línea Outdoor Pro cuentan con resistencia al agua.",
@@ -65,35 +81,68 @@ temas_permitidos = [
 ]
 
 memoria_usuario = {}
+historial_usuarios = {}
+preferencias = {}
+categorias = ["outdoor", "industrial", "tactical"]
 
 @app.route("/ask", methods=["POST"])
 def ask():
     data = request.get_json()
     user_id = data.get("user_id", "default_user")
     question = data.get("question", "").lower().strip()
+
     if not question:
         return jsonify({"answer": "Por favor, ingresa una pregunta válida."}), 400
 
+    # Historial
+    if user_id not in historial_usuarios:
+        historial_usuarios[user_id] = []
+    historial_usuarios[user_id].append({"pregunta": question})
+
+    # Preferencias
+    for categoria in categorias:
+        if categoria in question:
+            if user_id not in preferencias:
+                preferencias[user_id] = {c: 0 for c in categorias}
+            preferencias[user_id][categoria] += 1
+
+    # Preguntas frecuentes
     for faq_q, faq_r in faq.items():
         if faq_q in question:
+            historial_usuarios[user_id][-1]["respuesta"] = faq_r
             return jsonify({"answer": faq_r})
 
+    # Talla
     if "mi talla es" in question:
         talla = ''.join(filter(str.isdigit, question))
         if talla:
             memoria_usuario[user_id] = {"talla": talla}
-            return jsonify({"answer": f"¡Perfecto! Recordaré que tu talla es {talla}."})
+            respuesta = f"¡Perfecto! Recordaré que tu talla es {talla}."
         else:
-            return jsonify({"answer": "No entendí tu talla. Por favor indícala con números."})
+            respuesta = "No entendí tu talla. Por favor indícala con números."
+        historial_usuarios[user_id][-1]["respuesta"] = respuesta
+        return jsonify({"answer": respuesta})
 
     if "¿cuál es mi talla" in question or "cual es mi talla" in question:
         if user_id in memoria_usuario and "talla" in memoria_usuario[user_id]:
-            return jsonify({"answer": f"Tu talla es {memoria_usuario[user_id]['talla']}."})
+            respuesta = f"Tu talla es {memoria_usuario[user_id]['talla']}."
         else:
-            return jsonify({"answer": "Aún no me has dicho tu talla."})
+            respuesta = "Aún no me has dicho tu talla."
+        historial_usuarios[user_id][-1]["respuesta"] = respuesta
+        return jsonify({"answer": respuesta})
 
+    # Producto específico
+    for nombre, info in productos.items():
+        if nombre in question:
+            respuesta = f"{info['nombre']} - {info['descripcion']} Precio: {info['precio']}\nImagen: {info['imagen']}"
+            historial_usuarios[user_id][-1]["respuesta"] = respuesta
+            return jsonify({"answer": respuesta})
+
+    # Temas no permitidos
     if not any(palabra in question for palabra in temas_permitidos):
-        return jsonify({"answer": "Solo puedo ayudarte con temas relacionados al calzado y nuestra tienda. ¿Tienes una consulta sobre productos, tallas o envíos?"})
+        respuesta = "Solo puedo ayudarte con temas relacionados al calzado y nuestra tienda. ¿Tienes una consulta sobre productos, tallas o envíos?"
+        historial_usuarios[user_id][-1]["respuesta"] = respuesta
+        return jsonify({"answer": respuesta})
 
     try:
         completion = openai.ChatCompletion.create(
@@ -106,6 +155,7 @@ def ask():
             max_tokens=400
         )
         answer = completion.choices[0].message.content.strip()
+        historial_usuarios[user_id][-1]["respuesta"] = answer
         return jsonify({"answer": answer})
 
     except Exception as e:
