@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 import openai
 import os
 from flask_cors import CORS
+import difflib
 
 app = Flask(__name__)
 CORS(app)
@@ -64,31 +65,17 @@ temas_permitidos = [
     "política", "políticas", "contacto", "precio", "precios", "cotización", "envío gratis"
 ]
 
-# Memoria temporal por usuario
-memoria_usuario = {}
-
-# Diccionario de imágenes por producto clave
-imagenes_productos = {
-    "denver": "https://firsthill.com.co/wp-content/uploads/2024/09/1725576881351.webp",
-    "charlotte": "https://firsthill.com.co/wp-content/uploads/2024/10/1727877940141.webp",
-    # Añade las demás imágenes con claves similares
-}
-
-# Palabras para detectar saludo y mostrar menú
 saludos = ["hola", "buenos días", "buen día", "buenas tardes", "buenas noches", "buenas"]
 
-def preguntas_similares(user_question, faq_question, threshold=0.5):
-    """
-    Retorna True si la pregunta del usuario es similar a la pregunta FAQ.
-    Similaridad basada en porcentaje de palabras coincidentes.
-    """
-    user_words = set(user_question.split())
-    faq_words = set(faq_question.split())
-    if not faq_words:
-        return False
-    common_words = user_words.intersection(faq_words)
-    similarity = len(common_words) / len(faq_words)
-    return similarity >= threshold
+memoria_usuario = {}
+
+def pregunta_similar(pregunta, lista_preguntas, umbral=0.7):
+    # Retorna True si pregunta es similar a alguna en lista_preguntas usando difflib
+    for p in lista_preguntas:
+        seq = difflib.SequenceMatcher(None, pregunta, p)
+        if seq.ratio() >= umbral:
+            return True, p
+    return False, None
 
 @app.route("/ask", methods=["POST"])
 def ask():
@@ -98,7 +85,7 @@ def ask():
     if not question:
         return jsonify({"answer": "Por favor, ingresa una pregunta válida."})
 
-    # Reiniciar menú si saludo
+    # Saludo: mostrar menú
     if any(saludo in question for saludo in saludos):
         menu = (
             "👋 ¡Hola! Soy tu asistente de First Hill. ¿En qué puedo ayudarte?\n\n"
@@ -107,16 +94,16 @@ def ask():
             "3. Métodos de pago\n"
             "4. Contacto o devoluciones\n"
             "5. Pregunta abierta\n"
-            "(Escribe solo el número de opción)"
+            "(Escribe solo el número de opción o tu pregunta)"
         )
         return jsonify({"answer": menu})
 
-    # Buscar pregunta FAQ similar
-    for faq_q, faq_r in faq.items():
-        if preguntas_similares(question, faq_q, threshold=0.5):
-            return jsonify({"answer": faq_r})
+    # Buscar FAQ con similitud
+    similar, clave_faq = pregunta_similar(question, list(faq.keys()))
+    if similar:
+        return jsonify({"answer": faq[clave_faq]})
 
-    # Guardar talla si la indican
+    # Guardar talla si indican "mi talla es X"
     if "mi talla es" in question:
         talla = ''.join(filter(str.isdigit, question))
         if talla:
@@ -132,16 +119,9 @@ def ask():
         else:
             return jsonify({"answer": "Aún no me has dicho tu talla."})
 
-    # Verificar tema permitido
+    # Validar tema permitido
     if not any(palabra in question for palabra in temas_permitidos):
         return jsonify({"answer": "Solo puedo ayudarte con temas relacionados al calzado y nuestra tienda. ¿Tienes una consulta sobre productos, tallas o envíos?"})
-
-    # Buscar si hay imagen relacionada
-    image_url = None
-    for clave in imagenes_productos:
-        if clave in question:
-            image_url = imagenes_productos[clave]
-            break
 
     # Crear prompt para OpenAI
     prompt = f"{contenido_sitio}\n\nPregunta: {question}"
@@ -158,11 +138,7 @@ def ask():
         )
         answer = completion.choices[0].message.content.strip()
 
-        response = {"answer": answer}
-        if image_url:
-            response["image_url"] = image_url
-
-        return jsonify(response)
+        return jsonify({"answer": answer})
 
     except Exception as e:
         return jsonify({"answer": f"Error al procesar la pregunta: {str(e)}"})
