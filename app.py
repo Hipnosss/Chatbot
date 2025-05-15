@@ -70,12 +70,25 @@ memoria_usuario = {}
 # Diccionario de imágenes por producto clave
 imagenes_productos = {
     "denver": "https://firsthill.com.co/wp-content/uploads/2024/09/1725576881351.webp",
-    "charlotte": "https://firsthill.com.co/wp-content/uploads/2024/10/1727877940141.webpp",
+    "charlotte": "https://firsthill.com.co/wp-content/uploads/2024/10/1727877940141.webp",
     # Añade las demás imágenes con claves similares
 }
 
 # Palabras para detectar saludo y mostrar menú
 saludos = ["hola", "buenos días", "buen día", "buenas tardes", "buenas noches", "buenas"]
+
+def preguntas_similares(user_question, faq_question, threshold=0.5):
+    """
+    Retorna True si la pregunta del usuario es similar a la pregunta FAQ.
+    Similaridad basada en porcentaje de palabras coincidentes.
+    """
+    user_words = set(user_question.split())
+    faq_words = set(faq_question.split())
+    if not faq_words:
+        return False
+    common_words = user_words.intersection(faq_words)
+    similarity = len(common_words) / len(faq_words)
+    return similarity >= threshold
 
 @app.route("/ask", methods=["POST"])
 def ask():
@@ -98,9 +111,9 @@ def ask():
         )
         return jsonify({"answer": menu})
 
-    # Buscar en FAQ
+    # Buscar pregunta FAQ similar
     for faq_q, faq_r in faq.items():
-        if faq_q in question:
+        if preguntas_similares(question, faq_q, threshold=0.5):
             return jsonify({"answer": faq_r})
 
     # Guardar talla si la indican
