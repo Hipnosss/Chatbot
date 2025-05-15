@@ -25,12 +25,27 @@ Productos destacados y precios:
 - Botas Cincinnati IronForce Industrial para Hombre (Café) - $360.000 COP
 - Botas Cincinnati IronForce Industrial para Hombre (Miel) - $360.000 COP
 
+Calidad garantizada: Todos los productos pasan por inspección antes de despacho.
+Cotizaciones por mayor (+60 pares).
+Cobertura nacional con envío gratis a toda Colombia.
+Pago seguro con pasarela que cumple todos los requisitos de seguridad.
+
 Envíos:
 - Tiempo de entrega: 2 a 5 días hábiles.
 - Envío gratis en toda Colombia.
 
 Cambios y devoluciones: Hasta 15 días después de la compra.
 Métodos de pago: Tarjeta, PSE, Nequi, Daviplata.
+
+Contacto:
+- Dirección: Cl 69 Sur #18h-51, Bogotá
+- Tel: (+57) 3144403880
+- Email: contacto@firsthill.com.co
+- Redes sociales: Instagram, Facebook y WhatsApp: @FIRSTHILLCOLOMBIA
+
+Guía de tallas en la web. Políticas de privacidad, cambios y condiciones también están disponibles en línea.
+
+© 2025 FIRST HILL S.A.S. Todos los derechos reservados.
 """
 
 faq = {
@@ -43,77 +58,28 @@ faq = {
     "¿cómo contacto con atención al cliente?": "WhatsApp +57 3144403880 o contacto@firsthill.com.co"
 }
 
-imagenes_productos = {
-    "alabama": "https://firsthill.com.co/wp-content/uploads/2024/04/Alabama-ProTrek.jpg",
-    "arizona": "https://firsthill.com.co/wp-content/uploads/2024/04/Arizona-WildStride.jpg",
-    "charlotte": "https://firsthill.com.co/wp-content/uploads/2024/04/Charlotte-PowerTech.jpg",
-    "dakota": "https://firsthill.com.co/wp-content/uploads/2024/04/Dakota-Elite.jpg",
-    "denver": "https://firsthill.com.co/wp-content/uploads/2024/04/Denver-TitanStep.jpg",
-    "nevada": "https://firsthill.com.co/wp-content/uploads/2024/04/Nevada-TrailMaster.jpg",
-    "cincinnati": "https://firsthill.com.co/wp-content/uploads/2024/09/1725576881351.webp"
-}
-
 temas_permitidos = [
     "bota", "zapato", "calzado", "pago", "talla", "envío", "envios",
     "pedido", "devolución", "devoluciones", "guía", "seguridad", "trabajo", "senderismo",
     "política", "políticas", "contacto", "precio", "precios", "cotización", "envío gratis"
 ]
 
-memoria_usuario = {}
-
 @app.route("/ask", methods=["POST"])
 def ask():
     data = request.get_json()
-    user_id = data.get("user_id", "default_user")
     question = data.get("question", "").lower().strip()
-
     if not question:
         return jsonify({"answer": "Por favor, ingresa una pregunta válida."}), 400
 
-    # Menú por número
-    if question in ["1", "2", "3", "4"]:
-        opciones = {
-            "1": "Ofrecemos botas industriales, outdoor y tácticas. ¿Te interesa algún modelo en particular?",
-            "2": "Los envíos tardan entre 2 y 5 días hábiles. ¡Y son gratis en toda Colombia!",
-            "3": "Aceptamos pagos por tarjeta, PSE, Nequi y Daviplata. ¿Cuál prefieres?",
-            "4": "Puedes escribirnos al WhatsApp +57 3144403880 o al correo contacto@firsthill.com.co"
-        }
-        return jsonify({"answer": opciones[question]})
-
-    # FAQ directa
+    # Respuestas rápidas FAQ
     for faq_q, faq_r in faq.items():
         if faq_q in question:
             return jsonify({"answer": faq_r})
 
-    # Guardar talla
-    if "mi talla es" in question:
-        talla = ''.join(filter(str.isdigit, question))
-        if talla:
-            memoria_usuario[user_id] = {"talla": talla}
-            return jsonify({"answer": f"¡Perfecto! Recordaré que tu talla es {talla}."})
-        else:
-            return jsonify({"answer": "No entendí tu talla. Por favor indícala con números."})
-
-    # Recordar talla
-    if "¿cuál es mi talla" in question or "cual es mi talla" in question:
-        if user_id in memoria_usuario and "talla" in memoria_usuario[user_id]:
-            return jsonify({"answer": f"Tu talla es {memoria_usuario[user_id]['talla']}."})
-        else:
-            return jsonify({"answer": "Aún no me has dicho tu talla."})
-
-    # Imagen del producto
-    for nombre, url in imagenes_productos.items():
-        if nombre in question:
-            return jsonify({
-                "answer": f"Aquí tienes la imagen del modelo {nombre.capitalize()}:",
-                "image_url": url
-            })
-
-    # Restringir temas
+    # Filtrar temas no permitidos
     if not any(palabra in question for palabra in temas_permitidos):
         return jsonify({"answer": "Solo puedo ayudarte con temas relacionados al calzado y nuestra tienda. ¿Tienes una consulta sobre productos, tallas o envíos?"})
 
-    # OpenAI Chat
     try:
         completion = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
@@ -125,7 +91,20 @@ def ask():
             max_tokens=400
         )
         answer = completion.choices[0].message.content.strip()
-        return jsonify({"answer": answer})
+
+        # Aquí agregas una lógica simple para devolver una imagen si la pregunta lo amerita
+        image_url = None
+        if "alabama" in question:
+            image_url = "https://ruta-a-tu-imagen.com/alabama-protrek.webp"
+        elif "arizona" in question:
+            image_url = "https://ruta-a-tu-imagen.com/arizona-wildstride.webp"
+        # Puedes agregar más condiciones para otros productos
+
+        response = {"answer": answer}
+        if image_url:
+            response["image_url"] = image_url
+
+        return jsonify(response)
 
     except Exception as e:
         return jsonify({"answer": f"Error al procesar la pregunta: {str(e)}"}), 500
